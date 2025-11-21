@@ -103,10 +103,10 @@ Game gameFromFEN(std::string fenString) {
     index += 2;
     while(fenString[index] != ' ') {
         switch(fenString[index]) {
-            case 'K': game.whiteCanCastleKingside = 1;
-            case 'Q': game.whiteCanCastleQueenside = 1;
-            case 'k': game.blackCanCastleKingside = 1;
-            case 'q': game.blackCanCastleQueenside = 1;
+            case 'K': game.whiteCanCastleKingside = 1; break;
+            case 'Q': game.whiteCanCastleQueenside = 1; break;
+            case 'k': game.blackCanCastleKingside = 1; break;
+            case 'q': game.blackCanCastleQueenside = 1; break;
         }
         index++;
     }
@@ -139,6 +139,7 @@ uint64_t nodeCount(const Game &game, uint8_t depth) {
 
 
 void perft(std::string fenString, uint8_t depth) {
+    auto start_t = std::chrono::steady_clock::now();
     Game game = gameFromFEN(fenString);
     Game nextGame;
     Move moves[200] = {0};
@@ -152,24 +153,19 @@ void perft(std::string fenString, uint8_t depth) {
             std::cout << getTileString(move.startTile) << getTileString(move.endTile) << " " << std::to_string(currentNodes) << std::endl;
         }
     }
-    
+    auto end_t = std::chrono::steady_clock::now();
     std::cout << "\n" << std::to_string(totalNodes) << std::endl;
+    
+    auto duration = end_t - start_t;
+    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+    std::cout << "Time Taken: " << milliseconds << "ms" << std::endl;
+    auto nps = totalNodes / (milliseconds);
+    std::cout << "Speed: " << nps << " kN/s" << std::endl;
 }
 
 int main(int argc, char *argv[]) {
 	initMasterLUT();
-	uint8_t depth = std::atoi(argv[1]);
-	std::string fenString = argv[2];
-	perft(fenString, depth);
-// 	Game nextGame;
-// 	uint64_t totalMoves = 0;
-// 	while(totalMoves < 100) {
-// 	    std::cout << getGameString(game) << std::endl;
-// 	    doMove(game, nextGame, getBestMove(game, 5));
-// 	    std::cout << getGameString(nextGame) << std::endl;
-// 	    doMove(nextGame, game, getBestMove(nextGame, 5));
-// 	    totalMoves++;
-// 	}
+    perft("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 5);
     
 	return 0;
 }
