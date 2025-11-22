@@ -23,9 +23,9 @@ Move iterativeDeepening(const Game &game, uint32_t timeMS) {
         Move currentMove = getBestMove(game, currentDepth, timeMS-timeElapsedMS, eval);
         if(currentMove.piece) {
             bestMove = currentMove;
-            std::cout << "Depth: " << std::to_string(currentDepth) << std::endl;
-            std::cout << "Evaluation: " << std::to_string(eval) << std::endl;
-            std::cout << "Best Move: " << getMoveString(bestMove) << "\n" << std::endl;
+            // std::cout << "Depth: " << std::to_string(currentDepth) << std::endl;
+            // std::cout << "Evaluation: " << std::to_string(eval) << std::endl;
+            // std::cout << "Best Move: " << getMoveString(bestMove) << "\n" << std::endl;
         }
         else {
             currentDepth--;
@@ -34,6 +34,7 @@ Move iterativeDeepening(const Game &game, uint32_t timeMS) {
         timeElapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(endTime-startTime).count();
         currentDepth++;
     }
+    std::cout << (currentDepth-1) << std::endl;
     return bestMove;
 }
 
@@ -44,28 +45,51 @@ Move getBestMove(const Game &game, uint8_t depth, uint32_t timeMS, int64_t &eval
     int64_t alpha = -99999999;
     int64_t beta = 99999999;
     Move bestMove;
-    Game nextGame;
+    
+    Game nextGames[offset];
+    int64_t gameBaseEval[offset];
+    
     for(uint8_t index = 0; index < offset; index++) {
+        if(moveTable[index].piece) {
+            doMove(game, nextGames[index], moveTable[index]);
+            gameBaseEval[index] = (game.isWhiteTurn) ? evaluateGame(nextGames[index]) : -1*evaluateGame(nextGames[index]);
+        }
+        else {
+            gameBaseEval[index] = -999999;
+        }
+    }
+    
+    for(uint8_t i = 0; i < offset; i++) {
         auto endTime = std::chrono::steady_clock::now();
         uint32_t timeElapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(endTime-startTime).count();
         if(timeElapsedMS > timeMS) {
             Move dummyMove = {0};
             return dummyMove;
         }
-        if(moveTable[index].piece) {
-            doMove(game, nextGame, moveTable[index]);
-            int64_t currentEval = -1*negamax(nextGame, -1*beta, -1*alpha, depth-1);
-            if(currentEval > alpha) {
-                alpha = currentEval;
-                bestMove = moveTable[index];
+        
+        uint8_t bestIndex = 0;
+        for(uint8_t index = 1; index < offset; index++) {
+            if(gameBaseEval[index] == -999999) {
+                i++;
+                gameBaseEval[index] = -9999;
             }
+            if(gameBaseEval[index] > gameBaseEval[bestIndex]) {
+                bestIndex = index;
+            }
+        }
+        gameBaseEval[bestIndex] = -9999;
+        
+        int64_t currentEval = -1*negamax(nextGames[bestIndex], -1*beta, -1*alpha, depth-1);
+        if(currentEval > alpha) {
+            alpha = currentEval;
+            bestMove = moveTable[bestIndex];
         }
     }
     eval = alpha;
     return bestMove;
 }
 
-// alpha-beta negamax
+// alpha-beta negamax with evaluation based search ordering
 int64_t negamax(const Game &game, int64_t alpha, int64_t beta, uint8_t depth) {
     if(depth == 0) {
         return evaluateGame(game);
@@ -74,18 +98,32 @@ int64_t negamax(const Game &game, int64_t alpha, int64_t beta, uint8_t depth) {
     uint8_t offset = getPLMoves(game, moveTable);
     Game nextGame;
     
+    Game nextGames[offset];
+    int64_t gameBaseEval[offset];
+    
     for(uint8_t index = 0; index < offset; index++) {
-        if(moveTable[index].piece) {
-            doMove(game, nextGame, moveTable[index]);
-            int64_t currentEval = -1*negamax(nextGame, -1*beta, -1*alpha, depth-1);
-            if(currentEval >= beta) {
-                return beta;
-            }
-            if(currentEval > alpha) {
-                alpha = currentEval;
+        doMove(game, nextGames[index], moveTable[index]);
+        gameBaseEval[index] = (game.isWhiteTurn) ? evaluateGame(nextGames[index]) : -1*evaluateGame(nextGames[index]);
+    }
+    
+    for(uint8_t i = 0; i < offset; i++) {
+        uint8_t bestIndex = 0;
+        for(uint8_t index = 1; index < offset; index++) {
+            if(gameBaseEval[index] > gameBaseEval[bestIndex]) {
+                bestIndex = index;
             }
         }
+        gameBaseEval[bestIndex] = -9999;
+        
+        int64_t currentEval = -1*negamax(nextGames[bestIndex], -1*beta, -1*alpha, depth-1);
+        if(currentEval >= beta) {
+            return beta;
+        }
+        if(currentEval > alpha) {
+            alpha = currentEval;
+        }
     }
+    
     return alpha;
 }
 
@@ -121,4 +159,3 @@ int64_t evaluateGame(const Game &game) {
 }
 
 #endif
-
