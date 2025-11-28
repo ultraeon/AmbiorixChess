@@ -32,6 +32,10 @@ struct Game {
 	uint64_t whiteBishop;
 	uint64_t whiteQueen;
 	uint64_t whiteKing;
+	
+	uint64_t whitePieces;
+	uint64_t blackPieces;
+	uint64_t allPieces;
 
 	uint64_t enPassantBoard;
 	uint8_t isWhiteTurn;
@@ -247,5 +251,11 @@ constexpr inline uint16_t HQ_FILE_OFFSET = 128;
 constexpr inline uint16_t HQ_RANK_OFFSET = 192;
 constexpr inline uint16_t KING_LUT_OFFSET = 256;
 constexpr inline uint16_t KNIGHT_LUT_OFFSET = 320;
+
+constexpr inline uint64_t PAWN_PROMOTION_MASK = 0xFF000000000000FF;
+
+// game state constants
+constexpr inline uint8_t DRAW = 1;
+constexpr inline uint8_t LOSS = 2;
 
 #endif
