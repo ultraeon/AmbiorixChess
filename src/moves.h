@@ -5,6 +5,129 @@
 
 uint64_t masterLUT[384];
 
+// puts the board to the start of a normal chess game
+Game initGame() {
+	Game game;
+
+	game.blackPawn = BLACK_PAWN_START;
+	game.blackRook = BLACK_ROOK_START;
+	game.blackKnight = BLACK_KNIGHT_START;
+	game.blackBishop = BLACK_BISHOP_START;
+	game.blackQueen = BLACK_QUEEN_START;
+	game.blackKing = BLACK_KING_START;
+
+	game.whitePawn = WHITE_PAWN_START;
+	game.whiteRook = WHITE_ROOK_START;
+	game.whiteKnight = WHITE_KNIGHT_START;
+	game.whiteBishop = WHITE_BISHOP_START;
+	game.whiteQueen = WHITE_QUEEN_START;
+	game.whiteKing = WHITE_KING_START;
+	
+	game.whitePieces = game.whitePawn | game.whiteRook | game.whiteKnight
+	                   | game.whiteBishop | game.whiteQueen | game.whiteKing;
+	game.blackPieces = game.blackPawn | game.blackRook | game.blackKnight 
+	                   | game.blackBishop | game.blackQueen | game.blackKing;
+	game.allPieces = game.whitePieces | game.blackPieces;
+
+	game.enPassantBoard = 0;
+	game.isWhiteTurn = 1;
+	game.whiteCanCastleKingside = 1;
+	game.blackCanCastleKingside = 1;
+	game.whiteCanCastleQueenside = 1;
+	game.blackCanCastleQueenside = 1;
+
+	return game;
+}
+
+// half moves and full moves unused
+Game gameFromFEN(std::string fenString) {
+    Game game;
+    
+    game.blackPawn = 0;
+	game.blackRook = 0;
+	game.blackKnight = 0;
+	game.blackBishop = 0;
+	game.blackQueen = 0;
+	game.blackKing = 0;
+
+	game.whitePawn = 0;
+	game.whiteRook = 0;
+	game.whiteKnight = 0;
+	game.whiteBishop = 0;
+	game.whiteQueen = 0;
+	game.whiteKing = 0;
+	
+	game.enPassantBoard = 0;
+	game.whiteCanCastleKingside = 0;
+	game.blackCanCastleKingside = 0;
+	game.whiteCanCastleQueenside = 0;
+	game.blackCanCastleQueenside = 0;
+	
+    uint8_t i = 0;
+    uint8_t index = 0;
+
+    while(i < 64) {
+        switch(fenString[index]) {
+            case 'p': game.blackPawn |= uint64_t(1) << i; break;
+            case 'n': game.blackKnight |= uint64_t(1) << i; break;
+            case 'b': game.blackBishop |= uint64_t(1) << i; break;
+            case 'r': game.blackRook |= uint64_t(1) << i; break;
+            case 'q': game.blackQueen |= uint64_t(1) << i; break;
+            case 'k': game.blackKing |= uint64_t(1) << i; break;
+            case 'P': game.whitePawn |= uint64_t(1) << i; break;
+            case 'N': game.whiteKnight |= uint64_t(1) << i; break;
+            case 'B': game.whiteBishop |= uint64_t(1) << i; break;
+            case 'R': game.whiteRook |= uint64_t(1) << i; break;
+            case 'Q': game.whiteQueen |= uint64_t(1) << i; break;
+            case 'K': game.whiteKing |= uint64_t(1) << i; break;
+            case '2': i += 1; break;
+            case '3': i += 2; break;
+            case '4': i += 3; break;
+            case '5': i += 4; break;
+            case '6': i += 5; break;
+            case '7': i += 6; break;
+            case '8': i += 7; break;
+            case '/': i--; break;
+        }
+        index++;
+        i++;
+    }
+    index++;
+    if(fenString[index] == 'w') {
+        game.isWhiteTurn = 1;
+    }
+    else {
+        game.isWhiteTurn = 0;
+    }
+    
+    std::cout << fenString << std::endl;
+    index += 2;
+    while(fenString[index] != ' ') {
+        switch(fenString[index]) {
+            case 'K': game.whiteCanCastleKingside = 1; break;
+            case 'Q': game.whiteCanCastleQueenside = 1; break;
+            case 'k': game.blackCanCastleKingside = 1; break;
+            case 'q': game.blackCanCastleQueenside = 1; break;
+        }
+        index++;
+    }
+    
+    index++;
+    if(fenString[index] != '-') {
+        uint8_t row = 7-(fenString[index+1]-49);
+        uint8_t col = fenString[index]-97;
+        game.enPassantBoard = uint64_t(1) << (row*8 + col);
+    }
+    
+    game.whitePieces = game.whitePawn | game.whiteRook | game.whiteKnight
+	                   | game.whiteBishop | game.whiteQueen | game.whiteKing;
+	game.blackPieces = game.blackPawn | game.blackRook | game.blackKnight 
+	                   | game.blackBishop | game.blackQueen | game.blackKing;
+	game.allPieces = game.whitePieces | game.blackPieces;
+    
+    return game;
+}
+
 void initMasterLUT() {
 	uint64_t kingLUT[64];
 	uint64_t knightLUT[64];
@@ -14,275 +137,141 @@ void initMasterLUT() {
 	getHQLookupTable(hQLUT);
 
 	uint16_t i = 0;
-	for(i = 0; i < 256; i++) {
+	for(i = 0; i < 256; ++i) {
 		masterLUT[i] = hQLUT[i];
 	}
-	for(i = 256; i < 320; i++) {
+	for(i = 256; i < 320; ++i) {
 		masterLUT[i] = kingLUT[i-256];
 	}
-	for(i = 320; i < 384; i++) {
+	for(i = 320; i < 384; ++i) {
 		masterLUT[i] = knightLUT[i-320];
 	}
 }
 
-uint8_t getPLKingMoves(const Game &game, Move (&moves)[200], uint8_t offset) {
-	uint8_t pieceIndex = (game.isWhiteTurn) ? std::countr_zero(game.whiteKing) : std::countr_zero(game.blackKing);
-	uint64_t moveBoard = masterLUT[pieceIndex+KING_LUT_OFFSET];
-	uint64_t friendlyMask = 0;
-	uint64_t enemyMask = 0;
+inline void addMove(uint_fast8_t startTile, uint_fast8_t endTile, uint_fast8_t special, uint_fast8_t piece, uint_fast8_t &offset, Move(&moves)[200]) {
+    moves[offset].startTile = startTile;
+	moves[offset].endTile = endTile;
+	moves[offset].special = special;
+	moves[offset].piece = piece;
+	++offset;
+}
 
-	if(game.isWhiteTurn) {
-		friendlyMask |= game.whiteKing | game.whiteQueen | game.whitePawn;
-		friendlyMask |= game.whiteBishop | game.whiteRook | game.whiteKnight;
-		enemyMask |= game.blackKing | game.blackQueen | game.blackPawn;
-		enemyMask |= game.blackBishop | game.blackRook | game.blackKnight;
+inline void addMovesFromBoard(uint64_t moveBoard, uint_fast8_t pieceIndex, uint_fast8_t piece, uint_fast8_t &offset, Move (&moves)[200]) {
+    uint_fast8_t moveIndex = std::countr_zero(moveBoard);
+	while(moveBoard) {
+		moveBoard &= (moveBoard-1);
+		addMove(pieceIndex, moveIndex, NORMAL, piece, offset, moves);
+		moveIndex = std::countr_zero(moveBoard);
 	}
-	else {
-		friendlyMask |= game.blackKing | game.blackQueen | game.blackPawn;
-		friendlyMask |= game.blackBishop | game.blackRook | game.blackKnight;
-		enemyMask |= game.whiteKing | game.whiteQueen | game.whitePawn;
-		enemyMask |= game.whiteBishop | game.whiteRook | game.whiteKnight;
-	}
+}
+
+uint_fast8_t getPLKingMoves(const Game &game, Move (&moves)[200], uint_fast8_t offset) {
+	uint_fast8_t pieceIndex = (game.isWhiteTurn) ? std::countr_zero(game.whiteKing) : std::countr_zero(game.blackKing);
+	uint_fast8_t piece = (game.isWhiteTurn) ? WHITE_KING : BLACK_KING;
+	uint64_t friendlyMask = (game.isWhiteTurn) ? game.whitePieces : game.blackPieces;
+	uint64_t occMask = game.allPieces;
+	
+	uint64_t moveBoard = masterLUT[pieceIndex+KING_LUT_OFFSET];
 	moveBoard &= ~friendlyMask;
 
 	if(game.isWhiteTurn) {
-		if(game.whiteCanCastleQueenside && (!((friendlyMask | enemyMask) & WHITE_QUEENSIDE_CASTLE_MASK))) {
-			moves[offset].startTile = E1;
-			moves[offset].endTile = C1;
-			moves[offset].piece = WHITE_KING;
-			moves[offset].special = CASTLE_QUEENSIDE;
-			offset++;
+		if(game.whiteCanCastleQueenside && (!(occMask & WHITE_QUEENSIDE_CASTLE_MASK))) {
+			addMove(pieceIndex, C1, CASTLE_QUEENSIDE, piece, offset, moves);
 		}
-		if(game.whiteCanCastleKingside && (!((friendlyMask | enemyMask) & WHITE_KINGSIDE_CASTLE_MASK))) {
-			moves[offset].startTile = E1;
-			moves[offset].endTile = G1;
-			moves[offset].piece = WHITE_KING;
-			moves[offset].special = CASTLE_KINGSIDE;
-			offset++;
+		if(game.whiteCanCastleKingside && (!(occMask & WHITE_KINGSIDE_CASTLE_MASK))) {
+			addMove(pieceIndex, G1, CASTLE_KINGSIDE, piece, offset, moves);
 		}
 	}
 	else {
-		if(game.blackCanCastleQueenside && (!((friendlyMask | enemyMask) & BLACK_QUEENSIDE_CASTLE_MASK))) {
-			moves[offset].startTile = E8;
-			moves[offset].endTile = C8;
-			moves[offset].piece = BLACK_KING;
-			moves[offset].special = CASTLE_QUEENSIDE;
-			offset++;
+		if(game.blackCanCastleQueenside && (!(occMask & BLACK_QUEENSIDE_CASTLE_MASK))) {
+			addMove(pieceIndex, C8, CASTLE_QUEENSIDE, piece, offset, moves);
 		}
-		if(game.blackCanCastleKingside && (!((friendlyMask | enemyMask) & BLACK_KINGSIDE_CASTLE_MASK))) {
-			moves[offset].startTile = E8;
-			moves[offset].endTile = G8;
-			moves[offset].piece = BLACK_KING;
-			moves[offset].special = CASTLE_KINGSIDE;
-			offset++;
+		if(game.blackCanCastleKingside && (!(occMask & BLACK_KINGSIDE_CASTLE_MASK))) {
+			addMove(pieceIndex, G8, CASTLE_KINGSIDE, piece, offset, moves);
 		}
 	}
-
-	uint8_t rsb = std::countr_zero(moveBoard);
-	uint8_t moveIndex = rsb;
-	while(moveBoard) {
-		moveBoard ^= uint64_t(1) << rsb;
-		moves[offset].startTile = pieceIndex;
-		moves[offset].endTile = moveIndex;
-		moves[offset].special = NORMAL;
-		moves[offset].piece = (game.isWhiteTurn) ? WHITE_KING : BLACK_KING;
-		offset++;
-		rsb = std::countr_zero(moveBoard);
-		moveIndex = rsb;
-	}
-	return offset;
+    addMovesFromBoard(moveBoard, pieceIndex, piece, offset, moves);
+    return offset;
 }
 
-uint8_t getPLKnightMoves(const Game &game, Move (&moves)[200], uint8_t offset) {
+uint_fast8_t getPLKnightMoves(const Game &game, Move (&moves)[200], uint_fast8_t offset) {
 	uint64_t knightBoard = (game.isWhiteTurn) ? game.whiteKnight : game.blackKnight;
-	uint64_t friendlyMask = 0;
-	if(game.isWhiteTurn) {
-		friendlyMask |= game.whiteKing | game.whiteQueen | game.whitePawn;
-		friendlyMask |= game.whiteBishop | game.whiteRook | game.whiteKnight;
-	}
-	else {
-		friendlyMask |= game.blackKing | game.blackQueen | game.blackPawn;
-		friendlyMask |= game.blackBishop | game.blackRook | game.blackKnight;
-	}
+	uint_fast8_t piece = (game.isWhiteTurn) ? WHITE_KNIGHT : BLACK_KNIGHT;
+	uint64_t friendlyMask = (game.isWhiteTurn) ? game.whitePieces : game.blackPieces;
 
-	uint8_t rsb = std::countr_zero(knightBoard);
-	uint8_t rsb2 = 0;
-	uint8_t pieceIndex = rsb;
-	uint8_t moveIndex = 0;
-	uint64_t currentKnight = 0;
+	uint_fast8_t pieceIndex = std::countr_zero(knightBoard);
 	uint64_t moveBoard = 0;
 
 	while(knightBoard) {
-		knightBoard ^= uint64_t(1) << rsb;
-
-		currentKnight = uint64_t(1) << pieceIndex;
+		knightBoard &= (knightBoard-1);
+        
 		moveBoard = masterLUT[pieceIndex+KNIGHT_LUT_OFFSET];
 		moveBoard &= ~(friendlyMask);
+		addMovesFromBoard(moveBoard, pieceIndex, piece, offset, moves);
 
-		uint8_t rsb2 = std::countr_zero(moveBoard);
-		moveIndex = rsb2;
-
-		while(moveBoard) {
-			moveBoard ^= uint64_t(1) << rsb2;
-			moves[offset].startTile = pieceIndex;
-			moves[offset].endTile = moveIndex;
-			moves[offset].special = NORMAL;
-			moves[offset].piece = (game.isWhiteTurn) ? WHITE_KNIGHT : BLACK_KNIGHT;
-
-			offset++;
-			rsb2 = std::countr_zero(moveBoard);
-			moveIndex = rsb2;
-		}
-
-		rsb = std::countr_zero(knightBoard);
-		pieceIndex = rsb;
+		pieceIndex = std::countr_zero(knightBoard);
 	}
 	return offset;
 }
 
-uint8_t getPLPawnMoves(const Game &game, Move (&moves)[200], uint8_t offset) {
+uint_fast8_t getPLPawnMoves(const Game &game, Move (&moves)[200], uint_fast8_t offset) {
 	uint64_t pawnBoard = (game.isWhiteTurn) ? game.whitePawn : game.blackPawn;
+	uint_fast8_t piece = (game.isWhiteTurn) ? WHITE_PAWN : BLACK_PAWN;
+	uint64_t friendlyMask = (game.isWhiteTurn) ? game.whitePieces : game.blackPieces;
+	uint64_t enemyMask = (game.isWhiteTurn) ? game.blackPieces : game.whitePieces;
+	uint64_t occMask = game.allPieces;
 
-	uint64_t friendlyMask = 0;
-	uint64_t enemyMask = 0;
-	if(game.isWhiteTurn) {
-		friendlyMask |= game.whiteKing | game.whiteQueen | game.whitePawn;
-		friendlyMask |= game.whiteBishop | game.whiteRook | game.whiteKnight;
-		enemyMask |= game.blackKing | game.blackQueen | game.blackPawn;
-		enemyMask |= game.blackBishop | game.blackRook | game.blackKnight;
-	}
-	else {
-		enemyMask |= game.whiteKing | game.whiteQueen | game.whitePawn;
-		enemyMask |= game.whiteBishop | game.whiteRook | game.whiteKnight;
-		friendlyMask |= game.blackKing | game.blackQueen | game.blackPawn;
-		friendlyMask |= game.blackBishop | game.blackRook | game.blackKnight;
-	}
-
-	uint8_t rsb = std::countr_zero(pawnBoard);
-	uint8_t rsb2 = 0;
-	uint8_t pieceIndex = rsb;
-	uint8_t moveIndex = 0;
+	uint_fast8_t pieceIndex = std::countr_zero(pawnBoard);
 	uint64_t currentPawn = 0;
 	uint64_t moveBoard = 0;
 	uint64_t attackBoard = 0;
 
 	while(pawnBoard) {
-		pawnBoard ^= uint64_t(1) << rsb;
+		pawnBoard &= (pawnBoard-1);
 
 		currentPawn = uint64_t(1) << pieceIndex;
 
 		if(game.isWhiteTurn) {
 			moveBoard = (currentPawn >> 8) & (~enemyMask); // normal advances
-			moveBoard |= ((currentPawn & WHITE_PAWN_START) >> 16) & (~(enemyMask | (enemyMask >> 8) | (friendlyMask >> 8))); // double advances
-			if(!(currentPawn & FILE_H_MASK)) {
-				attackBoard = currentPawn >> 7; // right attack
-			}
-			if(!(currentPawn & FILE_A_MASK)) {
-				attackBoard |= currentPawn >> 9; // left attack
-			}
+			moveBoard |= ((currentPawn & WHITE_PAWN_START) >> 16) & (~(enemyMask | (occMask >> 8))); // double advances
+			attackBoard = currentPawn >> 7 & ~(FILE_A_MASK); // right attack
+			attackBoard |= currentPawn >> 9 & ~(FILE_H_MASK); // left attack
 		}
 		else {
 			moveBoard = currentPawn << 8 & (~enemyMask); // normal advances
-			moveBoard |= ((currentPawn & BLACK_PAWN_START) << 16) & (~(enemyMask | (enemyMask << 8) | (friendlyMask << 8))); // double advances
-			if(!(currentPawn & FILE_A_MASK)) {
-				attackBoard = currentPawn << 7; // left attack
-			}
-			if(!(currentPawn & FILE_H_MASK)) {
-				attackBoard |= currentPawn << 9; // right attack
-			}
+			moveBoard |= ((currentPawn & BLACK_PAWN_START) << 16) & (~(enemyMask | (occMask << 8))); // double advances
+			attackBoard = currentPawn << 7 & ~(FILE_H_MASK); // left attack
+			attackBoard |= currentPawn << 9 & ~(FILE_A_MASK); // right attack
 		}
 
 		if(attackBoard & game.enPassantBoard) {
-			moves[offset].startTile = pieceIndex;
-			moves[offset].endTile = std::countr_zero(game.enPassantBoard);
-			moves[offset].piece = (game.isWhiteTurn) ? WHITE_PAWN : BLACK_PAWN;
-			moves[offset].special = EN_PASSANT;
-			offset++;
+		    addMove(pieceIndex, std::countr_zero(game.enPassantBoard), EN_PASSANT, piece, offset, moves);
 		}
 
 		moveBoard &= ~(friendlyMask);
 		attackBoard &= enemyMask;
 		moveBoard |= attackBoard;
 		attackBoard = 0;
+		
+		uint64_t promotionBoard = moveBoard & PAWN_PROMOTION_MASK;
+		uint64_t normalBoard = moveBoard & (~PAWN_PROMOTION_MASK);
+        
+        addMovesFromBoard(normalBoard, pieceIndex, piece, offset, moves);
+		uint_fast8_t moveIndex = std::countr_zero(promotionBoard);
 
-		uint8_t rsb2 = std::countr_zero(moveBoard);
-		moveIndex = rsb2;
-
-		while(moveBoard) {
-			moveBoard ^= uint64_t(1) << rsb2;
-
-			if(game.isWhiteTurn) {
-				if(moveIndex >= A7) {
-					moves[offset].startTile = pieceIndex;
-					moves[offset].endTile = moveIndex;
-					moves[offset].special = NORMAL;
-					moves[offset].piece = WHITE_PAWN;
-				}
-				else {
-					moves[offset].startTile = pieceIndex;
-					moves[offset].endTile = moveIndex;
-					moves[offset].special = PROMOTE_QUEEN;
-					moves[offset].piece = WHITE_PAWN;
-					offset++;
-					moves[offset].startTile = pieceIndex;
-					moves[offset].endTile = moveIndex;
-					moves[offset].special = PROMOTE_KNIGHT;
-					moves[offset].piece = WHITE_PAWN;
-					offset++;
-					moves[offset].startTile = pieceIndex;
-					moves[offset].endTile = moveIndex;
-					moves[offset].special = PROMOTE_BISHOP;
-					moves[offset].piece = WHITE_PAWN;
-					offset++;
-					moves[offset].startTile = pieceIndex;
-					moves[offset].endTile = moveIndex;
-					moves[offset].special = PROMOTE_ROOK;
-					moves[offset].piece = WHITE_PAWN;
-				}
-			}
-			else {
-				if(moveIndex <= H2) {
-					moves[offset].startTile = pieceIndex;
-					moves[offset].endTile = moveIndex;
-					moves[offset].special = NORMAL;
-					moves[offset].piece = BLACK_PAWN;
-				}
-				else {
-					moves[offset].startTile = pieceIndex;
-					moves[offset].endTile = moveIndex;
-					moves[offset].special = PROMOTE_QUEEN;
-					moves[offset].piece = BLACK_PAWN;
-					offset++;
-					moves[offset].startTile = pieceIndex;
-					moves[offset].endTile = moveIndex;
-					moves[offset].special = PROMOTE_KNIGHT;
-					moves[offset].piece = BLACK_PAWN;
-					offset++;
-					moves[offset].startTile = pieceIndex;
-					moves[offset].endTile = moveIndex;
-					moves[offset].special = PROMOTE_BISHOP;
-					moves[offset].piece = BLACK_PAWN;
-					offset++;
-					moves[offset].startTile = pieceIndex;
-					moves[offset].endTile = moveIndex;
-					moves[offset].special = PROMOTE_ROOK;
-					moves[offset].piece = BLACK_PAWN;
-				}
-			}
-
-			offset++;
-			rsb2 = std::countr_zero(moveBoard);
-			moveIndex = rsb2;
+		while(promotionBoard) {
+			promotionBoard ^= uint64_t(1) << moveIndex;
+			addMove(pieceIndex, moveIndex, PROMOTE_QUEEN, piece, offset, moves);
+			addMove(pieceIndex, moveIndex, PROMOTE_KNIGHT, piece, offset, moves);
+			addMove(pieceIndex, moveIndex, PROMOTE_ROOK, piece, offset, moves);
+			addMove(pieceIndex, moveIndex, PROMOTE_BISHOP, piece, offset, moves);
+			moveIndex = std::countr_zero(promotionBoard);
 		}
-
-		rsb = std::countr_zero(pawnBoard);
-		pieceIndex = rsb;
+		pieceIndex = std::countr_zero(pawnBoard);
 	}
 	return offset;
 }
 
-// stolen from the chess stack exchange
-// thank you for hard carrying me
 inline uint64_t reverseBits(uint64_t bitboard) {
 	bitboard = (bitboard & 0x5555555555555555) << 1 | ((bitboard >> 1) & 0x5555555555555555);
 	bitboard = (bitboard & 0x3333333333333333) << 2 | ((bitboard >> 2) & 0x3333333333333333);
@@ -292,223 +281,98 @@ inline uint64_t reverseBits(uint64_t bitboard) {
 	return (bitboard << 48) | ((bitboard & 0xffff0000) << 16) | ((bitboard >> 16) & 0xffff0000) | (bitboard >> 48);
 }
 
-uint8_t getPLBishopMoves(const Game &game, Move (&moves)[200], uint8_t offset) {
-	uint64_t bishopBoard = (game.isWhiteTurn) ? game.whiteBishop : game.blackBishop;
-	uint64_t friendlyMask = 0;
-	uint64_t enemyMask = 0;
-	if(game.isWhiteTurn) {
-		friendlyMask |= game.whiteKing | game.whiteQueen | game.whitePawn;
-		friendlyMask |= game.whiteBishop | game.whiteRook | game.whiteKnight;
-		enemyMask |= game.blackKing | game.blackQueen | game.blackPawn;
-		enemyMask |= game.blackBishop | game.blackRook | game.blackKnight;
-	}
-	else {
-		friendlyMask |= game.blackKing | game.blackQueen | game.blackPawn;
-		friendlyMask |= game.blackBishop | game.blackRook | game.blackKnight;
-		enemyMask |= game.whiteKing | game.whiteQueen | game.whitePawn;
-		enemyMask |= game.whiteBishop | game.whiteRook | game.whiteKnight;
-	}
+inline uint64_t hyperbolaQuintessence(uint64_t occMask, uint64_t pieceBoard, uint_fast8_t pieceIndex, uint16_t offset) {
+    uint64_t forward = (occMask & masterLUT[pieceIndex+offset]) - (pieceBoard*2);
+	forward ^= reverseBits(reverseBits(occMask & masterLUT[pieceIndex+offset]) - reverseBits(pieceBoard) * 2);
+	forward &= masterLUT[pieceIndex+offset];
+	return forward;
+}
 
-	uint8_t rsb = std::countr_zero(bishopBoard);
-	uint8_t rsb2 = 0;
-	uint8_t pieceIndex = rsb;
-	uint8_t moveIndex = 0;
+uint_fast8_t getPLBishopMoves(const Game &game, Move (&moves)[200], uint_fast8_t offset) {
+	uint64_t bishopBoard = (game.isWhiteTurn) ? game.whiteBishop : game.blackBishop;
+	if(!bishopBoard) {
+	    return offset;
+	}
+	uint_fast8_t piece = (game.isWhiteTurn) ? WHITE_BISHOP : BLACK_BISHOP;
+	uint64_t friendlyMask = (game.isWhiteTurn) ? game.whitePieces : game.blackPieces;
+	uint64_t occMask = game.allPieces;
+
+	uint_fast8_t pieceIndex = std::countr_zero(bishopBoard);
 	uint64_t currentBishop = 0;
 	uint64_t moveBoard = 0;
-	uint64_t forward = 0;;
+	uint64_t forward = 0;
 
 	while(bishopBoard) {
-		bishopBoard ^= uint64_t(1) << rsb;
-
+		bishopBoard ^= uint64_t(1) << pieceIndex;
 		currentBishop = uint64_t(1) << pieceIndex;
 
-		// diagonal hyperbolic quintessence
-		forward = (friendlyMask | enemyMask) & masterLUT[pieceIndex+HQ_DIAGONAL_OFFSET];
-		forward -= currentBishop * 2;
-		forward ^= reverseBits(reverseBits((friendlyMask | enemyMask) & masterLUT[pieceIndex+HQ_DIAGONAL_OFFSET]) - reverseBits(currentBishop) * 2);
-		forward &= masterLUT[pieceIndex+HQ_DIAGONAL_OFFSET];
-		moveBoard = forward;
-
-		// antidiagonal hyperbolic quintessence
-		forward = (friendlyMask | enemyMask) & masterLUT[pieceIndex + HQ_ANTIDIAGONAL_OFFSET];
-		forward -= currentBishop * 2;
-		forward ^= reverseBits(reverseBits((friendlyMask | enemyMask) & masterLUT[pieceIndex + HQ_ANTIDIAGONAL_OFFSET]) - reverseBits(currentBishop) * 2);
-		forward &= masterLUT[pieceIndex + HQ_ANTIDIAGONAL_OFFSET];
-		moveBoard |= forward;
-
+		moveBoard = hyperbolaQuintessence(occMask, currentBishop, pieceIndex, HQ_DIAGONAL_OFFSET);
+        moveBoard |= hyperbolaQuintessence(occMask, currentBishop, pieceIndex, HQ_ANTIDIAGONAL_OFFSET);
 		moveBoard &= ~(friendlyMask);
-		uint8_t rsb2 = std::countr_zero(moveBoard);
-		moveIndex = rsb2;
-
-		while(moveBoard) {
-			moveBoard ^= uint64_t(1) << rsb2;
-			moves[offset].startTile = pieceIndex;
-			moves[offset].endTile = moveIndex;
-			moves[offset].special = NORMAL;
-			moves[offset].piece = (game.isWhiteTurn) ? WHITE_BISHOP : BLACK_BISHOP;
-
-			offset++;
-			rsb2 = std::countr_zero(moveBoard);
-			moveIndex = rsb2;
-		}
-
-		rsb = std::countr_zero(bishopBoard);
-		pieceIndex = rsb;
+		addMovesFromBoard(moveBoard, pieceIndex, piece, offset, moves);
+		
+		pieceIndex = std::countr_zero(bishopBoard);
 	}
 	return offset;
 }
 
-uint8_t getPLRookMoves(const Game &game, Move (&moves)[200], uint8_t offset) {
+uint_fast8_t getPLRookMoves(const Game &game, Move (&moves)[200], uint_fast8_t offset) {
 	uint64_t rookBoard = (game.isWhiteTurn) ? game.whiteRook : game.blackRook;
-	uint64_t friendlyMask = 0;
-	uint64_t enemyMask = 0;
-	if(game.isWhiteTurn) {
-		friendlyMask |= game.whiteKing | game.whiteQueen | game.whitePawn;
-		friendlyMask |= game.whiteBishop | game.whiteRook | game.whiteKnight;
-		enemyMask |= game.blackKing | game.blackQueen | game.blackPawn;
-		enemyMask |= game.blackBishop | game.blackRook | game.blackKnight;
-	}
-	else {
-		friendlyMask |= game.blackKing | game.blackQueen | game.blackPawn;
-		friendlyMask |= game.blackBishop | game.blackRook | game.blackKnight;
-		enemyMask |= game.whiteKing | game.whiteQueen | game.whitePawn;
-		enemyMask |= game.whiteBishop | game.whiteRook | game.whiteKnight;
-	}
-
-	uint8_t rsb = std::countr_zero(rookBoard);
-	uint8_t rsb2 = 0;
-	uint8_t pieceIndex = rsb;
-	uint8_t moveIndex = 0;
+	uint_fast8_t piece = (game.isWhiteTurn) ? WHITE_ROOK : BLACK_ROOK; 
+	uint64_t friendlyMask = (game.isWhiteTurn) ? game.whitePieces : game.blackPieces;
+	uint64_t occMask = game.allPieces;
+    
+	uint_fast8_t pieceIndex = std::countr_zero(rookBoard);
 	uint64_t currentRook = 0;
 	uint64_t moveBoard = 0;
 	uint64_t forward = 0;;
 
 	while(rookBoard) {
-		rookBoard ^= uint64_t(1) << rsb;
-
+		rookBoard ^= uint64_t(1) << pieceIndex;
 		currentRook = uint64_t(1) << pieceIndex;
 
-		// file hyperbolic quintessence
-		forward = (friendlyMask | enemyMask) & masterLUT[pieceIndex + HQ_FILE_OFFSET];
-		forward -= currentRook * 2;
-		forward ^= reverseBits(reverseBits((friendlyMask | enemyMask) & masterLUT[pieceIndex + HQ_FILE_OFFSET]) - reverseBits(currentRook) * 2);
-		forward &= masterLUT[pieceIndex + HQ_FILE_OFFSET];
-		moveBoard = forward;
-
-		// rank hyperbolic quintessence
-		forward = (friendlyMask | enemyMask) & masterLUT[pieceIndex + HQ_RANK_OFFSET];
-		forward -= currentRook * 2;
-		forward ^= reverseBits(reverseBits((friendlyMask | enemyMask) & masterLUT[pieceIndex + HQ_RANK_OFFSET]) - reverseBits(currentRook) * 2);
-		forward &= masterLUT[pieceIndex + HQ_RANK_OFFSET];
-		moveBoard |= forward;
-
+		moveBoard = hyperbolaQuintessence(occMask, currentRook, pieceIndex, HQ_FILE_OFFSET);
+		moveBoard |= hyperbolaQuintessence(occMask, currentRook, pieceIndex, HQ_RANK_OFFSET);
 		moveBoard &= ~(friendlyMask);
-		uint8_t rsb2 = std::countr_zero(moveBoard);
-		moveIndex = rsb2;
+        addMovesFromBoard(moveBoard, pieceIndex, piece, offset, moves);
 
-		while(moveBoard) {
-			moveBoard ^= uint64_t(1) << rsb2;
-			moves[offset].startTile = pieceIndex;
-			moves[offset].endTile = moveIndex;
-			moves[offset].special = NORMAL;
-			moves[offset].piece = (game.isWhiteTurn) ? WHITE_ROOK : BLACK_ROOK;
-
-			offset++;
-			rsb2 = std::countr_zero(moveBoard);
-			moveIndex = rsb2;
-		}
-
-		rsb = std::countr_zero(rookBoard);
-		pieceIndex = rsb;
+		pieceIndex = std::countr_zero(rookBoard);
 	}
 	return offset;
 }
 
-uint8_t getPLQueenMoves(const Game &game, Move (&moves)[200], uint8_t offset) {
+uint_fast8_t getPLQueenMoves(const Game &game, Move (&moves)[200], uint_fast8_t offset) {
 	uint64_t queenBoard = (game.isWhiteTurn) ? game.whiteQueen : game.blackQueen;
-	uint64_t friendlyMask = 0;
-	uint64_t enemyMask = 0;
-	if(game.isWhiteTurn) {
-		friendlyMask |= game.whiteKing | game.whiteQueen | game.whitePawn;
-		friendlyMask |= game.whiteBishop | game.whiteRook | game.whiteKnight;
-		enemyMask |= game.blackKing | game.blackQueen | game.blackPawn;
-		enemyMask |= game.blackBishop | game.blackRook | game.blackKnight;
-	}
-	else {
-		friendlyMask |= game.blackKing | game.blackQueen | game.blackPawn;
-		friendlyMask |= game.blackBishop | game.blackRook | game.blackKnight;
-		enemyMask |= game.whiteKing | game.whiteQueen | game.whitePawn;
-		enemyMask |= game.whiteBishop | game.whiteRook | game.whiteKnight;
-	}
-
-	uint8_t rsb = std::countr_zero(queenBoard);
-	uint8_t rsb2 = 0;
-	uint8_t pieceIndex = rsb;
-	uint8_t moveIndex = 0;
+	uint_fast8_t piece = (game.isWhiteTurn) ? WHITE_QUEEN : BLACK_QUEEN;
+	uint64_t friendlyMask = (game.isWhiteTurn) ? game.whitePieces : game.blackPieces;
+	uint64_t occMask = game.allPieces;
+    
+	uint_fast8_t pieceIndex = std::countr_zero(queenBoard);
 	uint64_t currentQueen = 0;
 	uint64_t moveBoard = 0;
 	uint64_t forward = 0;;
 
 	while(queenBoard) {
-		queenBoard ^= uint64_t(1) << rsb;
-
+		queenBoard ^= uint64_t(1) << pieceIndex;
 		currentQueen = uint64_t(1) << pieceIndex;
 
-		// diagonal hyperbolic quintessence
-		forward = (friendlyMask | enemyMask) & masterLUT[pieceIndex+HQ_DIAGONAL_OFFSET];
-		forward -= currentQueen * 2;
-		forward ^= reverseBits(reverseBits((friendlyMask | enemyMask) & masterLUT[pieceIndex+HQ_DIAGONAL_OFFSET]) - reverseBits(currentQueen) * 2);
-		forward &= masterLUT[pieceIndex+HQ_DIAGONAL_OFFSET];
-		moveBoard = forward;
-
-		// antidiagonal hyperbolic quintessence
-		forward = (friendlyMask | enemyMask) & masterLUT[pieceIndex+HQ_ANTIDIAGONAL_OFFSET];
-		forward -= currentQueen * 2;
-		forward ^= reverseBits(reverseBits((friendlyMask | enemyMask) & masterLUT[pieceIndex+HQ_ANTIDIAGONAL_OFFSET]) - reverseBits(currentQueen) * 2);
-		forward &= masterLUT[pieceIndex+HQ_ANTIDIAGONAL_OFFSET];
-		moveBoard |= forward;
-
-		// file hyperbolic quintessence
-		forward = (friendlyMask | enemyMask) & masterLUT[pieceIndex+HQ_FILE_OFFSET];
-		forward -= currentQueen * 2;
-		forward ^= reverseBits(reverseBits((friendlyMask | enemyMask) & masterLUT[pieceIndex+HQ_FILE_OFFSET]) - reverseBits(currentQueen) * 2);
-		forward &= masterLUT[pieceIndex+HQ_FILE_OFFSET];
-		moveBoard |= forward;
-
-		// rank hyperbolic quintessence
-		forward = (friendlyMask | enemyMask) & masterLUT[pieceIndex+HQ_RANK_OFFSET];
-		forward -= currentQueen * 2;
-		forward ^= reverseBits(reverseBits((friendlyMask | enemyMask) & masterLUT[pieceIndex+HQ_RANK_OFFSET]) - reverseBits(currentQueen) * 2);
-		forward &= masterLUT[pieceIndex+HQ_RANK_OFFSET];
-		moveBoard |= forward;
-
+        moveBoard = hyperbolaQuintessence(occMask, currentQueen, pieceIndex, HQ_DIAGONAL_OFFSET);
+        moveBoard |= hyperbolaQuintessence(occMask, currentQueen, pieceIndex, HQ_ANTIDIAGONAL_OFFSET);
+        moveBoard |= hyperbolaQuintessence(occMask, currentQueen, pieceIndex, HQ_FILE_OFFSET);
+        moveBoard |= hyperbolaQuintessence(occMask, currentQueen, pieceIndex, HQ_RANK_OFFSET);
 		moveBoard &= ~(friendlyMask);
-		uint8_t rsb2 = std::countr_zero(moveBoard);
-		moveIndex = rsb2;
-
-		while(moveBoard) {
-			moveBoard ^= uint64_t(1) << rsb2;
-			moves[offset].startTile = pieceIndex;
-			moves[offset].endTile = moveIndex;
-			moves[offset].special = NORMAL;
-			moves[offset].piece = (game.isWhiteTurn) ? WHITE_QUEEN : BLACK_QUEEN;
-
-			offset++;
-			rsb2 = std::countr_zero(moveBoard);
-			moveIndex = rsb2;
-		}
-
-		rsb = std::countr_zero(queenBoard);
-		pieceIndex = rsb;
+		addMovesFromBoard(moveBoard, pieceIndex, piece, offset, moves);
+		
+		pieceIndex = std::countr_zero(queenBoard);
 	}
 	return offset;
 }
 
-uint8_t getPLMoves(const Game &game, Move (&moves)[200]) {
+uint_fast8_t getPLMoves(const Game &game, Move (&moves)[200]) {
     if(!(game.blackKing) || !(game.whiteKing)) {
         return 0;
     }
-	uint8_t offset = 0;
+	uint_fast8_t offset = 0;
 	offset = getPLPawnMoves(game, moves, offset);
 	offset = getPLBishopMoves(game, moves, offset);
 	offset = getPLKnightMoves(game, moves, offset);
@@ -516,6 +380,26 @@ uint8_t getPLMoves(const Game &game, Move (&moves)[200]) {
 	offset = getPLQueenMoves(game, moves, offset);
 	offset = getPLKingMoves(game, moves, offset);
 	return offset;
+}
+
+inline void updateWhiteAttacked(Game &game, uint64_t endTileMask) {
+    game.whitePawn &= ~endTileMask;
+    game.whiteKnight &= ~endTileMask;
+	game.whiteBishop &= ~endTileMask;
+	game.whiteKing &= ~endTileMask;
+	game.whiteQueen &= ~endTileMask;
+	game.whiteRook &= ~endTileMask;
+	game.whitePieces &= ~endTileMask;
+}
+
+inline void updateBlackAttacked(Game &game, uint64_t endTileMask) {
+    game.blackPawn &= ~endTileMask;
+    game.blackKnight &= ~endTileMask;
+	game.blackBishop &= ~endTileMask;
+	game.blackKing &= ~endTileMask;
+	game.blackQueen &= ~endTileMask;
+	game.blackRook &= ~endTileMask;
+	game.blackPieces &= ~endTileMask;
 }
 
 void doMove(const Game &game, Game &nextGame, const Move &move) {
@@ -532,6 +416,7 @@ void doMove(const Game &game, Game &nextGame, const Move &move) {
 	nextGame.whiteKnight = game.whiteKnight;
 	nextGame.whitePawn = game.whitePawn;
 	nextGame.whiteRook = game.whiteRook;
+	nextGame.whitePieces = game.whitePieces;
 
 	nextGame.blackKing = game.blackKing;
 	nextGame.blackQueen = game.blackQueen;
@@ -539,26 +424,31 @@ void doMove(const Game &game, Game &nextGame, const Move &move) {
 	nextGame.blackKnight = game.blackKnight;
 	nextGame.blackPawn = game.blackPawn;
 	nextGame.blackRook = game.blackRook;
-
+	nextGame.blackPieces = game.blackPieces;
+	
 	nextGame.enPassantBoard = 0;
-	if(move.startTile == move.endTile) {
-	    return;
-	}
-
+    
+    uint64_t startTileMask = uint64_t(1) << move.startTile;
+	uint64_t endTileMask = uint64_t(1) << move.endTile;
+	uint64_t combinedMask = startTileMask | endTileMask;
+    
 	if(move.special == CASTLE_KINGSIDE) {
 		if(move.piece == WHITE_KING) {
 			nextGame.whiteCanCastleKingside = 0;
 			nextGame.whiteCanCastleQueenside = 0;
 			nextGame.whiteKing ^= WHITE_KINGSIDE_KING_CASTLE;
 			nextGame.whiteRook ^= WHITE_KINGSIDE_ROOK_CASTLE;
+			nextGame.whitePieces ^= WHITE_KINGSIDE_KING_CASTLE;
+			nextGame.whitePieces ^= WHITE_KINGSIDE_ROOK_CASTLE;
 		}
 		else {
 			nextGame.blackCanCastleKingside = 0;
 			nextGame.blackCanCastleQueenside = 0;
 			nextGame.blackKing ^= BLACK_KINGSIDE_KING_CASTLE;
 			nextGame.blackRook ^= BLACK_KINGSIDE_ROOK_CASTLE;
+			nextGame.blackPieces ^= BLACK_KINGSIDE_KING_CASTLE;
+			nextGame.blackPieces ^= BLACK_KINGSIDE_ROOK_CASTLE;
 		}
-		return;
 	}
 	else if(move.special == CASTLE_QUEENSIDE) {
 		if(move.piece == WHITE_KING) {
@@ -566,45 +456,38 @@ void doMove(const Game &game, Game &nextGame, const Move &move) {
 			nextGame.whiteCanCastleQueenside = 0;
 			nextGame.whiteKing ^= WHITE_QUEENSIDE_KING_CASTLE;
 			nextGame.whiteRook ^= WHITE_QUEENSIDE_ROOK_CASTLE;
+			nextGame.whitePieces ^= WHITE_QUEENSIDE_KING_CASTLE;
+			nextGame.whitePieces ^= WHITE_QUEENSIDE_ROOK_CASTLE;
 		}
 		else {
 			nextGame.blackCanCastleKingside = 0;
 			nextGame.blackCanCastleQueenside = 0;
 			nextGame.blackKing ^= BLACK_QUEENSIDE_KING_CASTLE;
 			nextGame.blackRook ^= BLACK_QUEENSIDE_ROOK_CASTLE;
+			nextGame.blackPieces ^= BLACK_QUEENSIDE_KING_CASTLE;
+			nextGame.blackPieces ^= BLACK_QUEENSIDE_ROOK_CASTLE;
 		}
-		return;
 	}
-	uint64_t startTileMask = uint64_t(1) << move.startTile;
-	uint64_t endTileMask = uint64_t(1) << move.endTile;
-
-	if(move.special == PROMOTE_ROOK) {
+    else if(move.special == PROMOTE_ROOK) {
 		if(move.piece == WHITE_PAWN) {
 			nextGame.whitePawn ^= startTileMask;
 			nextGame.whiteRook ^= endTileMask;
-			nextGame.blackKnight &= ~endTileMask;
-			nextGame.blackBishop &= ~endTileMask;
-			nextGame.blackKing &= ~endTileMask;
-			nextGame.blackQueen &= ~endTileMask;
-			nextGame.blackRook &= ~endTileMask;
-			uint8_t rookCheck = std::countr_zero(nextGame.blackRook ^ game.blackRook);
+			nextGame.whitePieces ^= combinedMask;
+			updateBlackAttacked(nextGame, endTileMask);
+			uint_fast8_t rookCheck = std::countr_zero(nextGame.blackRook ^ game.blackRook);
 			if(rookCheck == A8) {
 			    nextGame.blackCanCastleQueenside = 0;
 			}
 			else if(rookCheck == H8) {
 			    nextGame.blackCanCastleKingside = 0;
 			}
-			
 		}
 		else {
 			nextGame.blackPawn ^= startTileMask;
 			nextGame.blackRook ^= endTileMask;
-			nextGame.whiteKnight &= ~endTileMask;
-			nextGame.whiteBishop &= ~endTileMask;
-			nextGame.whiteKing &= ~endTileMask;
-			nextGame.whiteQueen &= ~endTileMask;
-			nextGame.whiteRook &= ~endTileMask;
-			uint8_t rookCheck = std::countr_zero(nextGame.whiteRook ^ game.whiteRook);
+			nextGame.blackPieces ^= combinedMask;
+			updateWhiteAttacked(nextGame, endTileMask);
+			uint_fast8_t rookCheck = std::countr_zero(nextGame.whiteRook ^ game.whiteRook);
 			if(rookCheck == A1) {
 			    nextGame.whiteCanCastleQueenside = 0;
 			}
@@ -612,18 +495,14 @@ void doMove(const Game &game, Game &nextGame, const Move &move) {
 			    nextGame.whiteCanCastleKingside = 0;
 			}
 		}
-		return;
 	}
 	else if(move.special == PROMOTE_BISHOP) {
 		if(move.piece == WHITE_PAWN) {
 			nextGame.whitePawn ^= startTileMask;
 			nextGame.whiteBishop ^= endTileMask;
-			nextGame.blackKnight &= ~endTileMask;
-			nextGame.blackBishop &= ~endTileMask;
-			nextGame.blackKing &= ~endTileMask;
-			nextGame.blackQueen &= ~endTileMask;
-			nextGame.blackRook &= ~endTileMask;
-			uint8_t rookCheck = std::countr_zero(nextGame.blackRook ^ game.blackRook);
+			nextGame.whitePieces ^= combinedMask;
+			updateBlackAttacked(nextGame, endTileMask);
+			uint_fast8_t rookCheck = std::countr_zero(nextGame.blackRook ^ game.blackRook);
 			if(rookCheck == A8) {
 			    nextGame.blackCanCastleQueenside = 0;
 			}
@@ -634,12 +513,9 @@ void doMove(const Game &game, Game &nextGame, const Move &move) {
 		else {
 			nextGame.blackPawn ^= startTileMask;
 			nextGame.blackBishop ^= endTileMask;
-			nextGame.whiteKnight &= ~endTileMask;
-			nextGame.whiteBishop &= ~endTileMask;
-			nextGame.whiteKing &= ~endTileMask;
-			nextGame.whiteQueen &= ~endTileMask;
-			nextGame.whiteRook &= ~endTileMask;
-			uint8_t rookCheck = std::countr_zero(nextGame.whiteRook ^ game.whiteRook);
+			nextGame.blackPieces ^= combinedMask;
+			updateWhiteAttacked(nextGame, endTileMask);
+			uint_fast8_t rookCheck = std::countr_zero(nextGame.whiteRook ^ game.whiteRook);
 			if(rookCheck == A1) {
 			    nextGame.whiteCanCastleQueenside = 0;
 			}
@@ -647,18 +523,14 @@ void doMove(const Game &game, Game &nextGame, const Move &move) {
 			    nextGame.whiteCanCastleKingside = 0;
 			}
 		}
-		return;
 	}
 	else if(move.special == PROMOTE_KNIGHT) {
 		if(move.piece == WHITE_PAWN) {
 			nextGame.whitePawn ^= startTileMask;
 			nextGame.whiteKnight ^= endTileMask;
-			nextGame.blackKnight &= ~endTileMask;
-			nextGame.blackBishop &= ~endTileMask;
-			nextGame.blackKing &= ~endTileMask;
-			nextGame.blackQueen &= ~endTileMask;
-			nextGame.blackRook &= ~endTileMask;
-			uint8_t rookCheck = std::countr_zero(nextGame.blackRook ^ game.blackRook);
+			nextGame.whitePieces ^= combinedMask;
+			updateBlackAttacked(nextGame, endTileMask);
+			uint_fast8_t rookCheck = std::countr_zero(nextGame.blackRook ^ game.blackRook);
 			if(rookCheck == A8) {
 			    nextGame.blackCanCastleQueenside = 0;
 			}
@@ -669,12 +541,9 @@ void doMove(const Game &game, Game &nextGame, const Move &move) {
 		else {
 			nextGame.blackPawn ^= startTileMask;
 			nextGame.blackKnight ^= endTileMask;
-			nextGame.whiteKnight &= ~endTileMask;
-			nextGame.whiteBishop &= ~endTileMask;
-			nextGame.whiteKing &= ~endTileMask;
-			nextGame.whiteQueen &= ~endTileMask;
-			nextGame.whiteRook &= ~endTileMask;
-			uint8_t rookCheck = std::countr_zero(nextGame.whiteRook ^ game.whiteRook);
+			nextGame.blackPieces &= combinedMask;
+			updateWhiteAttacked(nextGame, endTileMask);
+			uint_fast8_t rookCheck = std::countr_zero(nextGame.whiteRook ^ game.whiteRook);
 			if(rookCheck == A1) {
 			    nextGame.whiteCanCastleQueenside = 0;
 			}
@@ -682,18 +551,14 @@ void doMove(const Game &game, Game &nextGame, const Move &move) {
 			    nextGame.whiteCanCastleKingside = 0;
 			}
 		}
-		return;
 	}
 	else if(move.special == PROMOTE_QUEEN) {
 		if(move.piece == WHITE_PAWN) {
 			nextGame.whitePawn ^= startTileMask;
 			nextGame.whiteQueen ^= endTileMask;
-			nextGame.blackKnight &= ~endTileMask;
-			nextGame.blackBishop &= ~endTileMask;
-			nextGame.blackKing &= ~endTileMask;
-			nextGame.blackQueen &= ~endTileMask;
-			nextGame.blackRook &= ~endTileMask;
-			uint8_t rookCheck = std::countr_zero(nextGame.blackRook ^ game.blackRook);
+			nextGame.whitePieces ^= combinedMask;
+			updateBlackAttacked(nextGame, endTileMask);
+			uint_fast8_t rookCheck = std::countr_zero(nextGame.blackRook ^ game.blackRook);
 			if(rookCheck == A8) {
 			    nextGame.blackCanCastleQueenside = 0;
 			}
@@ -704,12 +569,9 @@ void doMove(const Game &game, Game &nextGame, const Move &move) {
 		else {
 			nextGame.blackPawn ^= startTileMask;
 			nextGame.blackQueen ^= endTileMask;
-			nextGame.whiteKnight &= ~endTileMask;
-			nextGame.whiteBishop &= ~endTileMask;
-			nextGame.whiteKing &= ~endTileMask;
-			nextGame.whiteQueen &= ~endTileMask;
-			nextGame.whiteRook &= ~endTileMask;
-			uint8_t rookCheck = std::countr_zero(nextGame.whiteRook ^ game.whiteRook);
+			nextGame.blackPieces ^= combinedMask;
+			updateWhiteAttacked(nextGame, endTileMask);
+			uint_fast8_t rookCheck = std::countr_zero(nextGame.whiteRook ^ game.whiteRook);
 			if(rookCheck == A1) {
 			    nextGame.whiteCanCastleQueenside = 0;
 			}
@@ -717,18 +579,19 @@ void doMove(const Game &game, Game &nextGame, const Move &move) {
 			    nextGame.whiteCanCastleKingside = 0;
 			}
 		}
-		return;
 	}
-
-	uint64_t combinedMask = startTileMask | endTileMask;
-	if(move.special == EN_PASSANT) {
+    else if(move.special == EN_PASSANT) {
 		if(move.piece == WHITE_PAWN) {
 			nextGame.whitePawn ^= combinedMask;
+			nextGame.whitePieces ^= combinedMask;
 			nextGame.blackPawn &= ~(endTileMask << 8);
+			nextGame.blackPieces &= ~(endTileMask << 8);
 		}
 		else {
 			nextGame.blackPawn ^= combinedMask;
+			nextGame.blackPieces ^= combinedMask;
 			nextGame.whitePawn &= ~(endTileMask >> 8);
+			nextGame.whitePieces &= ~(endTileMask >> 8);
 		}
 	}
 	else if(move.special == NORMAL) {
@@ -764,13 +627,9 @@ void doMove(const Game &game, Game &nextGame, const Move &move) {
 				nextGame.whiteQueen ^= combinedMask;
 				break;
 			}
-			nextGame.blackKing &= ~endTileMask;
-			nextGame.blackQueen &= ~endTileMask;
-			nextGame.blackRook &= ~endTileMask;
-			nextGame.blackPawn &= ~endTileMask;
-			nextGame.blackBishop &= ~endTileMask;
-			nextGame.blackKnight &= ~endTileMask;
-			uint8_t rookCheck = std::countr_zero(nextGame.blackRook ^ game.blackRook);
+			nextGame.whitePieces ^= combinedMask;
+			updateBlackAttacked(nextGame, endTileMask);
+			uint_fast8_t rookCheck = std::countr_zero(nextGame.blackRook ^ game.blackRook);
 			if(rookCheck == A8) {
 			    nextGame.blackCanCastleQueenside = 0;
 			}
@@ -810,13 +669,9 @@ void doMove(const Game &game, Game &nextGame, const Move &move) {
 				nextGame.blackQueen ^= combinedMask;
 				break;
 			}
-			nextGame.whiteKing &= ~endTileMask;
-			nextGame.whiteQueen &= ~endTileMask;
-			nextGame.whiteRook &= ~endTileMask;
-			nextGame.whitePawn &= ~endTileMask;
-			nextGame.whiteBishop &= ~endTileMask;
-			nextGame.whiteKnight &= ~endTileMask;
-			uint8_t rookCheck = std::countr_zero(nextGame.whiteRook ^ game.whiteRook);
+			nextGame.blackPieces ^= combinedMask;
+			updateWhiteAttacked(nextGame, endTileMask);
+			uint_fast8_t rookCheck = std::countr_zero(nextGame.whiteRook ^ game.whiteRook);
 			if(rookCheck == A1) {
 			    nextGame.whiteCanCastleQueenside = 0;
 			}
@@ -825,112 +680,115 @@ void doMove(const Game &game, Game &nextGame, const Move &move) {
 			}
 		}
 	}
+	nextGame.allPieces = nextGame.whitePieces | nextGame.blackPieces;
 }
 
-void getLegalMoves(const Game &game, Move (&moves)[200]) {
-	uint8_t offset = getPLMoves(game, moves);
+inline uint_fast8_t isSquareAttacked(const Game &game, uint_fast8_t index) {
+    uint64_t position = uint64_t(1) << index;
+    uint64_t occMask = game.allPieces;
+    uint64_t kingBoard;
+    uint64_t knightBoard;
+    uint64_t pawnBoard;
+    uint64_t bishopBoard;
+    uint64_t rookBoard;
+    uint64_t queenBoard;
+    if(game.isWhiteTurn) {
+        kingBoard = game.blackKing;
+        knightBoard = game.blackKnight;
+        pawnBoard = game.blackPawn;
+        bishopBoard = game.blackBishop;
+        rookBoard = game.blackRook;
+        queenBoard = game.blackQueen;
+    }
+    else {
+        kingBoard = game.whiteKing;
+        knightBoard = game.whiteKnight;
+        pawnBoard = game.whitePawn;
+        bishopBoard = game.whiteBishop;
+        rookBoard = game.whiteRook;
+        queenBoard = game.whiteQueen;
+    }
+    // king
+    uint64_t kingPositions = masterLUT[index+KING_LUT_OFFSET];
+    if(kingPositions & kingBoard) {
+        return 1;
+    }
+    // knight
+    uint64_t knightPositions = masterLUT[index+KNIGHT_LUT_OFFSET];
+    if(knightPositions & knightBoard) {
+        return 1;
+    }
+    // pawn
+    uint64_t pawnPositions;
+    if(game.isWhiteTurn) {
+        pawnPositions = (position >> 7) & (~FILE_A_MASK);
+        pawnPositions |= (position >> 9) & (~FILE_H_MASK);
+    }
+    else {
+        pawnPositions = (position << 7) & (~FILE_H_MASK);
+        pawnPositions |= (position << 9) & (~FILE_A_MASK);
+    }
+    if(pawnPositions & pawnBoard) {
+        return 1;
+    }
+    // bishop/queen
+    uint64_t bishopPositions = hyperbolaQuintessence(occMask, position, index, HQ_DIAGONAL_OFFSET);
+    bishopPositions |= hyperbolaQuintessence(occMask, position, index, HQ_ANTIDIAGONAL_OFFSET);
+    if(bishopPositions & (bishopBoard | queenBoard)) {
+        return 1;
+    }
+    // rook/queen
+    uint64_t rookPositions = hyperbolaQuintessence(occMask, position, index, HQ_FILE_OFFSET);
+    rookPositions |= hyperbolaQuintessence(occMask, position, index, HQ_RANK_OFFSET);
+    if(rookPositions & (rookBoard | queenBoard)) {
+        return 1;
+    }
+    return 0;
+}
 
-	Game nextGame;
-	Game nextNextGame;
-	Move subMove1;
-	Move subMove2;
-	for(uint8_t index = 0; index < offset; index++) {
-		doMove(game, nextGame, moves[index]);
-		Move nextMoves[200] = {0};
-		uint8_t offset2 = getPLMoves(nextGame, nextMoves);
-		for(uint8_t index2 = 0; index2 < offset2; index2++) {
-			doMove(nextGame, nextNextGame, nextMoves[index2]);
-			if(!(nextNextGame.blackKing) || !(nextNextGame.whiteKing)) {
-				moves[index].piece = 0;
-				break;
-			}
-		}
-		// lord forgive me for my sins
-		if(moves[index].special == CASTLE_KINGSIDE) {
-		    if(moves[index].piece == WHITE_KING) {
-		        subMove1.startTile = E1;
-		        subMove1.endTile = E1;
-		        subMove1.piece = WHITE_KING;
-		        subMove1.special = NORMAL;
-		        subMove2.startTile = E1;
-		        subMove2.endTile = F1;
-		        subMove2.piece = WHITE_KING;
-		        subMove2.special = NORMAL;
-		    }
-		    else {
-		        subMove1.startTile = E8;
-		        subMove1.endTile = E8;
-		        subMove1.piece = BLACK_KING;
-		        subMove1.special = NORMAL;
-		        subMove2.startTile = E8;
-		        subMove2.endTile = F8;
-		        subMove2.piece = BLACK_KING;
-		        subMove2.special = NORMAL;
-		    }
-		    doMove(game, nextGame, subMove1);
-			Move nextMoves[200] = {0};
-		    uint8_t offset2 = getPLMoves(nextGame, nextMoves);
-		    for(uint8_t index2 = 0; index2 < offset2; index2++) {
-			    doMove(nextGame, nextNextGame, nextMoves[index2]);
-			    if(!(nextNextGame.blackKing) || !(nextNextGame.whiteKing)) {
-				    moves[index].piece = 0;
-				    break;
-			    }
-		    }
-		    doMove(game, nextGame, subMove2);
-		    nextMoves[200] = {0};
-		    offset2 = getPLMoves(nextGame, nextMoves);
-		    for(uint8_t index2 = 0; index2 < offset2; index2++) {
-			    doMove(nextGame, nextNextGame, nextMoves[index2]);
-			    if(!(nextNextGame.blackKing) || !(nextNextGame.whiteKing)) {
-				    moves[index].piece = 0;
-				    break;
-			    }
+uint_fast8_t getLegalMoves(const Game &game, Move (&moves)[200]) {
+	uint_fast8_t offset = getPLMoves(game, moves);
+
+	for(uint_fast8_t index = 0; index < offset; ++index) {
+		if(moves[index].piece != WHITE_KING && moves[index].piece != BLACK_KING) {
+		    Game nextGame;
+		    doMove(game, nextGame, moves[index]);
+		    nextGame.isWhiteTurn = !nextGame.isWhiteTurn;
+		    uint64_t kingIndex = (game.isWhiteTurn) ? std::countr_zero(game.whiteKing) : std::countr_zero(game.blackKing);
+		    if(isSquareAttacked(nextGame, kingIndex)) {
+		        moves[index].piece = 0;
 		    }
 		}
-		else if(moves[index].special == CASTLE_QUEENSIDE) {
-		    if(moves[index].piece == WHITE_KING) {
-		        subMove1.startTile = E1;
-		        subMove1.endTile = E1;
-		        subMove1.piece = WHITE_KING;
-		        subMove1.special = NORMAL;
-		        subMove2.startTile = E1;
-		        subMove2.endTile = D1;
-		        subMove2.piece = WHITE_KING;
-		        subMove2.special = NORMAL;
+		else {
+		    Game nextGame;
+		    doMove(game, nextGame, moves[index]);
+		    nextGame.isWhiteTurn = !nextGame.isWhiteTurn;
+		    if(isSquareAttacked(nextGame, moves[index].endTile)) {
+		        moves[index].piece = 0;
 		    }
-		    else {
-		        subMove1.startTile = E8;
-		        subMove1.endTile = E8;
-		        subMove1.piece = BLACK_KING;
-		        subMove1.special = NORMAL;
-		        subMove2.startTile = E8;
-		        subMove2.endTile = D8;
-		        subMove2.piece = BLACK_KING;
-		        subMove2.special = NORMAL;
+		    if(moves[index].special == CASTLE_KINGSIDE) {
+		        if(isSquareAttacked(game, moves[index].startTile) || isSquareAttacked(game, moves[index].startTile+1)) {
+		            moves[index].piece = 0;
+		        }
 		    }
-		    doMove(game, nextGame, subMove1);
-			Move nextMoves[200] = {0};
-		    uint8_t offset2 = getPLMoves(nextGame, nextMoves);
-		    for(uint8_t index2 = 0; index2 < offset2; index2++) {
-			    doMove(nextGame, nextNextGame, nextMoves[index2]);
-			    if(!(nextNextGame.blackKing) || !(nextNextGame.whiteKing)) {
-				    moves[index].piece = 0;
-				    break;
-			    }
-		    }
-		    doMove(game, nextGame, subMove2);
-		    nextMoves[200] = {0};
-		    offset2 = getPLMoves(nextGame, nextMoves);
-		    for(uint8_t index2 = 0; index2 < offset2; index2++) {
-			    doMove(nextGame, nextNextGame, nextMoves[index2]);
-			    if(!(nextNextGame.blackKing) || !(nextNextGame.whiteKing)) {
-				    moves[index].piece = 0;
-				    break;
-			    }
+		    else if(moves[index].special == CASTLE_QUEENSIDE) {
+		        if(isSquareAttacked(game, moves[index].startTile) || isSquareAttacked(game, moves[index].startTile-1)) {
+		            moves[index].piece = 0;
+		        }
 		    }
 		}
 	}
+	return offset;
+}
+
+uint8_t checkGameEnding(const Game &game) {
+    uint8_t kingIndex = (game.isWhiteTurn) ? std::countr_zero(game.whiteKing) : std::countr_zero(game.blackKing);
+    if(isSquareAttacked(game, kingIndex)) {
+        return LOSS;
+    }
+    else {
+        return DRAW;
+    }
 }
 
 #endif
