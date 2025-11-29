@@ -88,35 +88,25 @@ void handlePosition(std::list<std::string> tokens) {
     for(std::string token : tokens) {
         uint8_t startIndex = token[0]-97;
         uint8_t endIndex = token[2]-97;
-        uint8_t piece = 0;
+        uint8_t special = 0;
         startIndex += 8*(8-(token[1]-48));
         endIndex += 8*(8-(token[3]-48));
         if(token.length() == 5) {
-            if(game.isWhiteTurn) {
-                switch(token[4]) {
-                    case 'n': piece = WHITE_KNIGHT; break;
-                    case 'b': piece = WHITE_BISHOP; break;
-                    case 'r': piece = WHITE_ROOK; break;
-                    case 'q': piece = WHITE_QUEEN; break;
-                }
-            }
-            else {
-                switch(token[4]) {
-                    case 'n': piece = BLACK_KNIGHT; break;
-                    case 'b': piece = BLACK_BISHOP; break;
-                    case 'r': piece = BLACK_ROOK; break;
-                    case 'q': piece = BLACK_QUEEN; break;
-                }
+            switch(token[4]) {
+                case 'q': special = PROMOTE_QUEEN; break; 
+                case 'r': special = PROMOTE_ROOK; break;
+                case 'b': special = PROMOTE_BISHOP; break;
+                case 'n': special = PROMOTE_KNIGHT; break;
             }
         }
         
         Move moves[200] = {0}; 
         getLegalMoves(game, moves);
         Game nextGame;
-        if(piece) {
+        if(special) {
             for(Move move : moves) {
                 if(move.piece) {
-                    if(move.startTile == startIndex && move.endTile == endIndex && move.piece == piece) {
+                    if(move.startTile == startIndex && move.endTile == endIndex && move.special == special) {
                         doMove(game, nextGame, move);
                         break;
                     }
