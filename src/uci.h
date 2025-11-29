@@ -109,8 +109,14 @@ void handleGo(std::list<std::string> tokens) {
     std::string token = tokens.front();
     tokens.pop_front();
     
+    std::string returnStr = "";
+    
     if(token == "infinite") {
-        searchThread = std::jthread(infiniteSearch, std::cref(game), std::ref(bestMove));
+        searchThread = std::jthread(timedSearch, 0x7FFFFFFFFFFFFFFFLL, std::cref(game), std::ref(bestMove));
+    }
+    else if(token == "movetime") {
+        std::string timeMS = tokens.front();
+        searchThread = std::jthread(timedSearch, std::stoi(timeMS), std::cref(game), std::ref(bestMove));
     }
 }
 
@@ -119,17 +125,10 @@ void handlePonderHit() {
     return;
 }
 
-std::string handleStop() {
-    if(!searchThread.joinable()) {
-        return "";
+void handleStop() {
+    if(searchThread.joinable()) {
+        searchThread.request_stop();
     }
-    
-    std::string returnStr = "bestmove ";
-    searchThread.request_stop();
-    returnStr += getTileString(bestMove.startTile);
-    returnStr += getTileString(bestMove.endTile);
-    
-    return returnStr;
 }
 
 void handleQuit() {
@@ -170,7 +169,7 @@ std::string handleLine(std::string input) {
         handlePonderHit();
     }
     else if(command == "stop") {
-        returnStr = handleStop();
+        handleStop();
     }
     else if(command == "quit") {
         handleQuit();    
