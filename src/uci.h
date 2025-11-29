@@ -13,7 +13,6 @@
 #include "display.h"
 
 Game game;
-Move bestMove;
 std::jthread searchThread;
 uint8_t isActive;
 
@@ -82,20 +81,55 @@ void handlePosition(std::list<std::string> tokens) {
         game = gameFromFEN(initType);
     }
     
+    if(!tokens.empty()) {
+        tokens.pop_front();
+    }
+    
     for(std::string token : tokens) {
         uint8_t startIndex = token[0]-97;
         uint8_t endIndex = token[2]-97;
+        uint8_t piece = 0;
         startIndex += 8*(8-(token[1]-48));
         endIndex += 8*(8-(token[3]-48));
+        if(token.length() == 5) {
+            if(game.isWhiteTurn) {
+                switch(token[4]) {
+                    case 'n': piece = WHITE_KNIGHT; break;
+                    case 'b': piece = WHITE_BISHOP; break;
+                    case 'r': piece = WHITE_ROOK; break;
+                    case 'q': piece = WHITE_QUEEN; break;
+                }
+            }
+            else {
+                switch(token[4]) {
+                    case 'n': piece = BLACK_KNIGHT; break;
+                    case 'b': piece = BLACK_BISHOP; break;
+                    case 'r': piece = BLACK_ROOK; break;
+                    case 'q': piece = BLACK_QUEEN; break;
+                }
+            }
+        }
         
         Move moves[200] = {0}; 
         getLegalMoves(game, moves);
         Game nextGame;
-        for(Move move : moves) {
-            if(move.piece) {
-                if(move.startTile == startIndex && move.endTile == endIndex) {
-                    doMove(game, nextGame, move);
-                    break;
+        if(piece) {
+            for(Move move : moves) {
+                if(move.piece) {
+                    if(move.startTile == startIndex && move.endTile == endIndex && move.piece == piece) {
+                        doMove(game, nextGame, move);
+                        break;
+                    }
+                }
+            }
+        }
+        else {
+            for(Move move : moves) {
+                if(move.piece) {
+                    if(move.startTile == startIndex && move.endTile == endIndex) {
+                        doMove(game, nextGame, move);
+                        break;
+                    }
                 }
             }
         }
@@ -112,11 +146,11 @@ void handleGo(std::list<std::string> tokens) {
     std::string returnStr = "";
     
     if(token == "infinite") {
-        searchThread = std::jthread(timedSearch, 0x7FFFFFFFFFFFFFFFLL, std::cref(game), std::ref(bestMove));
+        searchThread = std::jthread(timedSearch, 0x7FFFFFFFFFFFFFFFLL, std::cref(game));
     }
     else if(token == "movetime") {
         std::string timeMS = tokens.front();
-        searchThread = std::jthread(timedSearch, std::stoi(timeMS), std::cref(game), std::ref(bestMove));
+        searchThread = std::jthread(timedSearch, std::stoi(timeMS), std::cref(game));
     }
 }
 
