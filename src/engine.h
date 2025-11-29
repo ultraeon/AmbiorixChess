@@ -151,7 +151,8 @@ Move getBestMove(std::stop_token sToken, auto startTime, int64_t timeMS, const G
     return bestMove;
 }
 
-void timedSearch(std::stop_token sToken, int64_t timeMS, const Game &game, Move &bestMove) {
+void timedSearch(std::stop_token sToken, int64_t timeMS, const Game &game) {
+    Move bestMove = {0};
     auto startTime = std::chrono::steady_clock::now();
     int64_t eval;
     int8_t currentDepth = 1;
@@ -161,6 +162,12 @@ void timedSearch(std::stop_token sToken, int64_t timeMS, const Game &game, Move 
             std::string returnStr = "bestmove ";
             returnStr += getTileString(bestMove.startTile);
             returnStr += getTileString(bestMove.endTile);
+            switch(bestMove.special) {
+                case PROMOTE_QUEEN: returnStr += "q"; break;
+                case PROMOTE_ROOK: returnStr += "r"; break;
+                case PROMOTE_BISHOP: returnStr += "b"; break;
+                case PROMOTE_KNIGHT: returnStr += "n"; break;
+            }
             std::cout << returnStr << std::endl;
             return;
         }
@@ -171,12 +178,34 @@ void timedSearch(std::stop_token sToken, int64_t timeMS, const Game &game, Move 
             std::string returnStr = "bestmove ";
             returnStr += getTileString(bestMove.startTile);
             returnStr += getTileString(bestMove.endTile);
+            switch(bestMove.special) {
+                case PROMOTE_QUEEN: returnStr += "q"; break;
+                case PROMOTE_ROOK: returnStr += "r"; break;
+                case PROMOTE_BISHOP: returnStr += "b"; break;
+                case PROMOTE_KNIGHT: returnStr += "n"; break;
+            }
             std::cout << returnStr << std::endl;
             return;
         }
         
         if(currentMove.piece) {
             bestMove = currentMove;
+            std::string infoString = "info depth ";
+            infoString += std::to_string(currentDepth);
+            infoString += " seldepth ";
+            infoString += std::to_string(currentDepth+3);
+            infoString += " pv ";
+            infoString += getTileString(bestMove.startTile);
+            infoString += getTileString(bestMove.endTile);
+            switch(bestMove.special) {
+                case PROMOTE_QUEEN: infoString += "q"; break;
+                case PROMOTE_ROOK: infoString += "r"; break;
+                case PROMOTE_BISHOP: infoString += "b"; break;
+                case PROMOTE_KNIGHT: infoString += "n"; break;
+            }
+            infoString += " score cp ";
+            infoString += std::to_string(eval*100);
+            std::cout << infoString << std::endl;
         }
         else {
             currentDepth--;
