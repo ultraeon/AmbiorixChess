@@ -166,7 +166,7 @@ int64_t evaluateGame(const Game &game) {
 }
 
 // alpha-beta negamax with capped quiesence search
-int64_t negamax(std::stop_token sToken, uint32_t &lastStopCheck, const Game &game, int64_t alpha, int64_t beta, int8_t depth) {
+int64_t negamax(std::stop_token sToken, auto startTime, int64_t timeMS, uint32_t &lastStopCheck, const Game &game, int64_t alpha, int64_t beta, int8_t depth) {
     Move moveTable[200] = {0};
     uint8_t offset = getLegalMoves(game, moveTable);
     Game nextGame;
@@ -175,6 +175,13 @@ int64_t negamax(std::stop_token sToken, uint32_t &lastStopCheck, const Game &gam
         if(sToken.stop_requested()) {
             return 0;
         }
+        
+        auto endTime = std::chrono::steady_clock::now();
+        int64_t timeElapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(endTime-startTime).count();
+        if(timeElapsedMS > timeMS) {
+            return 0;
+        }
+        
         lastStopCheck = 0;
     }
     // performs a quiesence search when the maximum depth is reached
@@ -192,7 +199,7 @@ int64_t negamax(std::stop_token sToken, uint32_t &lastStopCheck, const Game &gam
                 doMove(game, nextGame, moveTable[index]);
                 int64_t nextGameEval = -1*evaluateGame(nextGame);
                 if(gameEval != nextGameEval) {
-                    nextGameEval = -1*negamax(sToken, lastStopCheck, nextGame, -1*beta, -1*alpha, depth-1);
+                    nextGameEval = -1*negamax(sToken, startTime, timeMS, lastStopCheck, nextGame, -1*beta, -1*alpha, depth-1);
                 }
                 if(nextGameEval >= beta) {
                     return beta;
@@ -219,7 +226,7 @@ int64_t negamax(std::stop_token sToken, uint32_t &lastStopCheck, const Game &gam
         if(moveTable[index].piece) {
             moveFlag = 0;
             doMove(game, nextGame, moveTable[index]);
-            int64_t currentEval = -1*negamax(sToken, lastStopCheck, nextGame, -1*beta, -1*alpha, depth-1);
+            int64_t currentEval = -1*negamax(sToken, startTime, timeMS, lastStopCheck, nextGame, -1*beta, -1*alpha, depth-1);
             if(currentEval >= beta) {
                 return beta;
             }
@@ -240,7 +247,7 @@ int64_t negamax(std::stop_token sToken, uint32_t &lastStopCheck, const Game &gam
     return alpha;
 }
 
-Move getBestMove(std::stop_token sToken, const Game &game, int8_t depth, int64_t &eval, Move lBestMove) {
+Move getBestMove(std::stop_token sToken, auto startTime, int64_t timeMS, const Game &game, int8_t depth, int64_t &eval, Move lBestMove) {
     Move moveTable[200] = {0};
     uint8_t offset = getLegalMoves(game, moveTable);
     int64_t alpha = -99999999;
@@ -257,7 +264,7 @@ Move getBestMove(std::stop_token sToken, const Game &game, int8_t depth, int64_t
     for(uint8_t index = 0; index < offset; index++) {
         if(moveTable[index].piece && !(moveEquals(moveTable[index], lBestMove))) {
             doMove(game, nextGame, moveTable[index]);
-            int64_t currentEval = -1*negamax(sToken, lastStopCheck, nextGame, -1*beta, -1*alpha, depth-1);
+            int64_t currentEval = -1*negamax(sToken, startTime, timeMS, lastStopCheck, nextGame, -1*beta, -1*alpha, depth-1);
             if(currentEval > alpha) {
                 alpha = currentEval;
                 bestMove = moveTable[index];
@@ -266,19 +273,41 @@ Move getBestMove(std::stop_token sToken, const Game &game, int8_t depth, int64_t
         if(sToken.stop_requested()) {
             return bestMove;
         }
+        
+        auto endTime = std::chrono::steady_clock::now();
+        int64_t timeElapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(endTime-startTime).count();
+        if(timeElapsedMS > timeMS) {
+            return bestMove;
+        }
     }
     eval = alpha;
     return bestMove;
 }
 
-void infiniteSearch(std::stop_token sToken, const Game &game, Move &bestMove) {
+void timedSearch(std::stop_token sToken, int64_t timeMS, const Game &game, Move &bestMove) {
+    auto startTime = std::chrono::steady_clock::now();
     int64_t eval;
     int8_t currentDepth = 1;
     while(currentDepth < 100) {
-        Move currentMove = getBestMove(sToken, game, currentDepth, eval, bestMove);
+        Move currentMove = getBestMove(sToken, startTime, timeMS, game, currentDepth, eval, bestMove);
         if(sToken.stop_requested()) {
+            std::string returnStr = "bestmove ";
+            returnStr += getTileString(bestMove.startTile);
+            returnStr += getTileString(bestMove.endTile);
+            std::cout << returnStr << std::endl;
             return;
         }
+        
+        auto endTime = std::chrono::steady_clock::now();
+        int64_t timeElapsedMS = std::chrono::duration_cast<std::chrono::milliseconds>(endTime-startTime).count();
+        if(timeElapsedMS > timeMS) {
+            std::string returnStr = "bestmove ";
+            returnStr += getTileString(bestMove.startTile);
+            returnStr += getTileString(bestMove.endTile);
+            std::cout << returnStr << std::endl;
+            return;
+        }
+        
         if(currentMove.piece) {
             bestMove = currentMove;
         }
